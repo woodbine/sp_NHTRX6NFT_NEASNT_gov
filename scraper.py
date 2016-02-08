@@ -99,7 +99,7 @@ import requests   # import requests to exclude errors
 
 nav_links = soup.find('ul', id='secondaryNavigation').find_all('a')
 for nav_link in nav_links:
-    nav_html = requests.get('https://www.neas.nhs.uk'+nav_link['href'])
+    nav_html = requests.get('https://www.neas.nhs.uk'+nav_link['href'], verify=False)
     nav_soup = BeautifulSoup(nav_html.text, 'lxml')
     blocks = nav_soup.find('div', id='mainContent').find_all('a')
     for block in blocks:
