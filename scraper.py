@@ -8,6 +8,9 @@ import scraperwiki
 import urllib2
 from datetime import datetime
 from bs4 import BeautifulSoup
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
 
 #### FUNCTIONS 1.0
 
@@ -37,19 +40,19 @@ def validateFilename(filename):
 
 def validateURL(url):
     try:
-        r = urllib2.urlopen(url)
+        r = requests.get(url)
         count = 1
-        while r.getcode() == 500 and count < 4:
+        while r.status_code == 500 and count < 4:
             print ("Attempt {0} - Status code: {1}. Retrying.".format(count, r.status_code))
             count += 1
-            r = urllib2.urlopen(url)
+            r = requests.get(url)
         sourceFilename = r.headers.get('Content-Disposition')
 
         if sourceFilename:
             ext = os.path.splitext(sourceFilename)[1].replace('"', '').replace(';', '').replace(' ', '')
         else:
             ext = os.path.splitext(url)[1]
-        validURL = r.getcode() == 200
+        validURL = r.status_code == 200
         validFiletype = ext.lower() in ['.csv', '.xls', '.xlsx', '.pdf']
         return validURL, validFiletype
     except:
@@ -97,24 +100,24 @@ soup = BeautifulSoup(html, 'lxml')
 #### SCRAPE DATA
 import requests   # import requests to exclude errors
 
-nav_links = soup.find('ul', id='secondaryNavigation').find_all('a')
+nav_links = soup.find('td', text="Expenditure information above £25,000").find_next('td').find_all('a')
 for nav_link in nav_links:
-    nav_html = requests.get('https://www.neas.nhs.uk'+nav_link['href'], verify=False)
+    if '2010' in nav_link['title']:
+        link = 'https://www.neas.nhs.uk/about-us/what-we-spendhow/2010-expenditure-over-£25,000.aspx'
+    else:
+        link = 'https://www.neas.nhs.uk'+nav_link['href']
+
+    nav_html = requests.get(link, verify=False)
     nav_soup = BeautifulSoup(nav_html.text, 'lxml')
     blocks = nav_soup.find('div', id='mainContent').find_all('a')
     for block in blocks:
-        try:
             if '.csv' in block['href'] or '.xls' in block['href'] or '.xlsx' in block['href'] or '.pdf' in block['href']:
                 link = 'https://www.neas.nhs.uk'+block['href']
                 title = block.text.strip().split()
                 csvMth = title[0][:3]
-                csvYr = title[-1][-4:]
-                if '000' in csvYr:
-                    csvYr = nav_soup.find('div', id='mainContent').find('h1').text.strip()[:4]
+                csvYr = nav_soup.find('div', id="sectionMain").find('h1').text.strip().split('-')[0].strip()
                 csvMth = convert_mth_strings(csvMth.upper())
                 data.append([csvYr, csvMth, link])
-        except:
-            pass
 
 
 #### STORE DATA 1.0
